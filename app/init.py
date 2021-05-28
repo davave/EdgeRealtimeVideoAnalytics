@@ -64,11 +64,11 @@ if __name__ == '__main__':
     print(res)
 
     # Load the gear
-    print('Loading gear - ', end='')
-    with open('gear.py', 'rb') as f:
-        gear = f.read()
-        res = conn.execute_command('RG.PYEXECUTE', gear)
-        print(res)
+    #print('Loading gear - ', end='')
+    #with open('gear.py', 'rb') as f:
+    #    gear = f.read()
+    #    res = conn.execute_command('RG.PYEXECUTE', gear)
+    #    print(res)
 
     # Lastly, set a key that indicates initialization has been performed
     print('Flag initialization as done - ', end='') 

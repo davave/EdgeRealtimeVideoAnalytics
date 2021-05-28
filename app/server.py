@@ -5,8 +5,11 @@ import io
 import numpy as np
 import redis
 from urllib.parse import urlparse
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 from flask import Flask, render_template, Response
+import funzioni
+from scipy.interpolate import Rbf
+
 
 class RedisImageStream(object):
     def __init__(self, conn, args):
@@ -14,6 +17,7 @@ class RedisImageStream(object):
         self.camera = args.camera
         self.boxes = args.boxes
         self.field = args.field.encode('utf-8') 
+        self.rbfX, self.rbfY = funzioni.computeRbf()
 
     def get_last(self):
         ''' Gets latest from camera and model '''
@@ -28,6 +32,7 @@ class RedisImageStream(object):
             img = Image.open(data)
             if bmsg:
                 boxes = np.fromstring(bmsg[0][1]['boxes'.encode('utf-8')][1:-1], sep=',')
+                IDs = np.fromstring(bmsg[0][1]['IDs'.encode('utf-8')][1:-1], sep=',', dtype=int)
                 label += ' people: {}'.format(bmsg[0][1]['people'.encode('utf-8')].decode('utf-8'))
                 for box in range(int(bmsg[0][1]['people'.encode('utf-8')])):  # Draw boxes
                     x1 = boxes[box*4]
@@ -35,7 +40,32 @@ class RedisImageStream(object):
                     x2 = boxes[box*4+2]
                     y2 = boxes[box*4+3]
                     draw = ImageDraw.Draw(img)
-                    draw.rectangle(((x1, y1), (x2, y2)), width=5, outline='red')
+                    draw.rectangle(((x1, y1), (x2, y2)), width=2, outline='red')
+
+                    # Centroid
+                    cX, cY = funzioni.centroid(x1,y1,x2,y2)
+                    r = 3
+                    leftUpPoint = (cX-r, cY-r)
+                    rightDownPoint = (cX+r, cY+r)
+                    twoPointList = [leftUpPoint, rightDownPoint]
+                    draw.ellipse(twoPointList, fill=(255,0,0,255))
+                    
+                    # feet
+                    feetCoordinatesX = float(self.rbfX(cX / 640, cY / 480)) * 640
+                    feetCoordinatesY = float(self.rbfY(cX / 640 , cY / 480)) * 480
+                    
+                    r = 3
+                    leftUpPoint = (feetCoordinatesX-r, feetCoordinatesY-r)
+                    rightDownPoint = (feetCoordinatesX+r, feetCoordinatesY+r)
+                    twoPointList = [ leftUpPoint, rightDownPoint ]
+                    #print(twoPointList)
+                    draw.ellipse(twoPointList, fill=('cyan'))
+
+                    # ID
+                    font = './font/yudit.ttf'
+                    fontSize = 20
+                    draw.text((x1 + 5, y1 + 5), str(IDs[box]), font=ImageFont.truetype(font,fontSize), fill=(255,0,0,255))
+
             arr = np.array(img)
             arr = cv2.cvtColor(arr, cv2.COLOR_BGR2RGB)
             cv2.putText(arr, label, (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 1, cv2.LINE_AA)

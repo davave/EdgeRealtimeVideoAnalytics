@@ -44,3 +44,8 @@ services:
       - prometheus
     ports:
       - 3000:3000
+
+  #detection:
+  #  depends_on:
+  #    - init
+  #  build: ../people-detection
